@@ -70,7 +70,8 @@ function LoginForm() {
             if (response.ok) {
                 console.log('Login successful', data);
                 localStorage.setItem('token', data.token);
-                localStorage.setItem('userId', data.user.id);
+                
+                localStorage.setItem('user', JSON.stringify(data.user));
 
                 navigate('/chat')
             } else {
