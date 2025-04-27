@@ -12,24 +12,27 @@ function Chat() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
 
+    const [websocket, setWebsocket] = useState(null);
+    const [wsStatus, setWsStatus] = useState('Connecting...');
+
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
 
     useEffect(() => {
+        const storedUser = localStorage.getItem('user');
+
+        if (storedUser) {
+            setCurrentUser(JSON.parse(storedUser));
+        }
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+            navigate('/login');
+            return;
+        }
+
         const fetchMessages = async () => {
-            const token = localStorage.getItem('token');
-            const storedUser = localStorage.getItem('user');
-
-            if (storedUser) {
-                setCurrentUser(JSON.parse(storedUser));
-            }
-
-            if (!token) {
-                navigate('/login');
-                return;
-            }
-
             setIsLoading(true);
             setError(null);
 
@@ -63,6 +66,39 @@ function Chat() {
         };
 
         fetchMessages();
+
+        const wsUrl = 'ws://localhost:3001';
+        const ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+            console.log('WebSocket connection established');
+            setWsStatus('Connected');
+        };
+
+        ws.onmessage = event => {
+            console.log('WebSocket message received:', event.data)
+            try {
+                const message = JSON.parse(event.data);
+                setMessages(prevMessages => [...prevMessages, message]);
+            } catch (err) {
+                console.error('Failed to parse WebSocket message:', err);
+            }
+        };
+
+        ws.onerror = err => {
+            console.error('WebSocket error:', err);
+            setWsStatus('Error');
+        };
+
+        ws.onclose = event => {
+            console.log('WebSocket connection closed:', event.code, event.reason);
+            setWsStatus('Disconnected');
+        };
+        setWebsocket(ws);
+        return () => {
+            console.log('Closing WebSocket connection');
+            ws.close();
+        }
     }, [navigate, error]);
 
     useEffect(() => {
@@ -93,13 +129,12 @@ function Chat() {
                     const sentMessageData = await response.json();
                     console.log('Message sent:', sentMessageData);
                     if (sentMessageData.success && sentMessageData.messageData) {
-                        setMessages(prevMessages => [...prevMessages, sentMessageData.messageData]);
                         setNewMessage('');
                     } else {
                         console.error('Message sent, but unexpected response data:', sentMessageData);
                         setError('Message sent, but failed to update chat.');
                     }
-                    
+
                 } else if (response.status === 401 || response.status === 403) {
                     localStorage.removeItem('token');
                     localStorage.removeItem('userLogin');
