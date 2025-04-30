@@ -24,3 +24,25 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+
+/* Шапка */
+header {
+  text-align: center;
+  font-size: 30px;
+  background-color: #252c41;
+  padding: 0.1em 0 0.3em;
+  border-bottom: 1px solid #f0c674;
+}
+
+header a {
+  text-decoration: none;
+}
+
+header a #base-part {
+  color: #8be9fd;
+}
+
+header a #chat-part {
+  color: #f0c674;
+}
