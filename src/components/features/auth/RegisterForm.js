@@ -97,7 +97,7 @@ function RegisterForm() {
             } else {
                 setGeneralError(data.message || 'Registration failed');
                 console.error('Registration failed:', data);
-                
+
             }
         } catch (err) {
             setGeneralError('Network error. Retry.');
@@ -110,6 +110,11 @@ function RegisterForm() {
     return (
 
         <div id="register-form">
+            <header>
+                <a href="/" title="Main Page">
+                    <span id="base-part">Base</span><span id="chat-part">Chat</span>
+                </a>
+            </header>
             <form method="post" className="auth-form" onSubmit={handleSubmit}>
                 <label htmlFor="username">Login:</label>
                 <input
@@ -129,7 +134,7 @@ function RegisterForm() {
                     onChange={handlePasswordChange}
                     disabled={isLoading}
                     required />
-                {passwordError &&  <p className="non-valid" id="password-error">{passwordError}</p>}
+                {passwordError && <p className="non-valid" id="password-error">{passwordError}</p>}
 
                 <label htmlFor="repeat-pass">Repeat password:</label>
                 <input
@@ -141,7 +146,7 @@ function RegisterForm() {
                     required />
                 {repeatPasswordError && <p className="non-valid" id="repeat-error">{repeatPasswordError}</p>}
                 {generalError && <p className="non-valid">{generalError}</p>}
-                
+
                 <button type="submit">Sign Up</button>
 
                 <p>

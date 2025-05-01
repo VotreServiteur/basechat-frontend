@@ -88,6 +88,11 @@ function LoginForm() {
 
     return (
         <div id="login-form">
+            <header>
+            <a href="/" title="Main Page">
+                <span id="base-part">Base</span><span id="chat-part">Chat</span>
+            </a>
+            </header>
             <form method="post" className="auth-form" onSubmit={handleSubmit}>
                 <label htmlFor="username">Login:</label>
                 <input
