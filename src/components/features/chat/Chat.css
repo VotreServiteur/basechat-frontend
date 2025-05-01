@@ -175,6 +175,14 @@
     word-wrap: break-word;
 }
 
+.message-text {
+    white-space: pre-line;
+
+    word-wrap: break-word;
+    overflow-wrap: break-word; 
+    word-break: break-word; 
+}
+
 .left {
     align-self: flex-start;
     border-top-left-radius: 0%;
