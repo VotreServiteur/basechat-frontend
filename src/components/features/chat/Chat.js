@@ -2,20 +2,28 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import './Chat.css';
 import { useNavigate } from "react-router-dom";
 function Chat() {
+
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
     const [hasMoreMessages, setHasMoreMessages] = useState(true);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
+
     const navigate = useNavigate();
+    
     const [currentUser, setCurrentUser] = useState(null);
+    
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
+    
     const [editingMessageId, setEditingMessageId] = useState(null);
     const [originalText, setOriginalText] = useState('');
+    
     const [wsStatus, setWsStatus] = useState('Connecting...');
+    
     const [contextMenuVisible, setContextMenuVisible] = useState(false);
     const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
     const [selectedMessageIdForMenu, setSelectedMessageIdForMenu] = useState(null);
+    
     const [userChats, setUserChats] = useState([]);
     const [isLoadingChats, setIsLoadingChats] = useState(false);
     const [errorChats, setErrorChats] = useState(null);
@@ -32,6 +40,7 @@ function Chat() {
     const wsRef = useRef(null);
     const setCurrentChatIdRef = useRef(setCurrentChatId);
     const currentChatIdRef = useRef(null);
+    
     const scrollToBottom = useCallback((behavior = "smooth") => {
         messagesEndRef.current?.scrollIntoView({ behavior: behavior });
     }, [])
@@ -80,6 +89,7 @@ function Chat() {
             setIsLoadingChats(false);
         }
     }, [navigate, setUserChats, setErrorChats]);
+    
     const fetchMessages = useCallback(async (limit, chatId, beforeId = null) => {
         setIsLoading(true);
         setError(null);
@@ -150,7 +160,9 @@ function Chat() {
                 setIsLoadingMore(false);
             }
         }
-    }, [setIsLoading, setError, navigate, setMessagesRef, setHasMoreMessages, setIsLoadingMore]);
+    }, [navigate, scrollToBottom]);
+    
+    
     const isSameDay = (timestamp1, timestamp2) => {
         if (!timestamp1 || !timestamp2) return false;
         const date1 = new Date(timestamp1);
