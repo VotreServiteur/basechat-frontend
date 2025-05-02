@@ -9,21 +9,21 @@ function Chat() {
     const [isLoadingMore, setIsLoadingMore] = useState(false);
 
     const navigate = useNavigate();
-    
+
     const [currentUser, setCurrentUser] = useState(null);
-    
+
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
-    
+
     const [editingMessageId, setEditingMessageId] = useState(null);
     const [originalText, setOriginalText] = useState('');
-    
+
     const [wsStatus, setWsStatus] = useState('Connecting...');
-    
+
     const [contextMenuVisible, setContextMenuVisible] = useState(false);
     const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
     const [selectedMessageIdForMenu, setSelectedMessageIdForMenu] = useState(null);
-    
+
     const [userChats, setUserChats] = useState([]);
     const [isLoadingChats, setIsLoadingChats] = useState(false);
     const [errorChats, setErrorChats] = useState(null);
@@ -40,10 +40,10 @@ function Chat() {
     const wsRef = useRef(null);
     const setCurrentChatIdRef = useRef(setCurrentChatId);
     const currentChatIdRef = useRef(null);
-    
+
     const scrollToBottom = useCallback((behavior = "smooth") => {
         messagesEndRef.current?.scrollIntoView({ behavior: behavior });
-    }, [])
+    }, [messagesEndRef])
 
     const fetchChats = useCallback(async () => {
         setIsLoadingChats(true);
@@ -89,7 +89,7 @@ function Chat() {
             setIsLoadingChats(false);
         }
     }, [navigate, setUserChats, setErrorChats]);
-    
+
     const fetchMessages = useCallback(async (limit, chatId, beforeId = null) => {
         setIsLoading(true);
         setError(null);
@@ -161,8 +161,8 @@ function Chat() {
             }
         }
     }, [navigate, scrollToBottom]);
-    
-    
+
+
     const isSameDay = (timestamp1, timestamp2) => {
         if (!timestamp1 || !timestamp2) return false;
         const date1 = new Date(timestamp1);
@@ -359,7 +359,6 @@ function Chat() {
     const handleChatSelect = useCallback((chatId) => {
         console.log('Chat selected:', chatId);
         setCurrentChatId(chatId);
-        //initialScrollDoneRef.current = false;
         setEditingMessageId(null);
         setOriginalText('');
         setNewMessage('');
@@ -480,24 +479,29 @@ function Chat() {
                     }
                 } else if (notification.type === 'message_deleted') {
                     const deletedMessageId = notification.messageId;
-                    console.log('Received message_deleted notification for ID:', deletedMessageId);
-                    setMessagesRef.current(prevMessages => {
-                        const updatedMessages = prevMessages.filter(msg => String(msg.id) !== String(deletedMessageId));
-                        if (updatedMessages.length < prevMessages.length) {
-                            console.log('Removed message with ID:', deletedMessageId);
-                        } else {
-                            console.log('Message with ID', deletedMessageId, 'not found in state.');
-                        }
-                        return updatedMessages;
-                    });
+                    const messageChatId = notification.chatId;
+                    if (deletedMessageId && String(messageChatId) === String(activeChatId)) {
+                        console.log('Deleting message with ID:', deletedMessageId, 'from active chat state.');
+                        setMessagesRef.current(prevMessages => {
+                            const updatedMessages = prevMessages.filter(msg => String(msg.id) !== String(deletedMessageId));
+                            if (updatedMessages.length < prevMessages.length) {
+                                console.log('Removed message with ID:', deletedMessageId);
+                            } else {
+                                console.log('Message with ID', deletedMessageId, 'not found in state.');
+                            }
+                            return updatedMessages;
+                        })
+                    };
                 } else if (notification.type === 'message_updated') {
                     const updatedMessageData = notification.messageData;
-                    console.log('Received message_updated notification for ID:', updatedMessageData.id);
-                    setMessagesRef.current(prevMessages => {
-                        return prevMessages.map(msg =>
-                            String(msg.id) === String(updatedMessageData.id) ? updatedMessageData : msg
-                        );
-                    });
+                    if (updatedMessageData && String(updatedMessageData.chat_id) === String(activeChatId)) {
+                        console.log('Received message_updated notification for ID:', updatedMessageData.id);
+                        setMessagesRef.current(prevMessages => {
+                            return prevMessages.map(msg =>
+                                String(msg.id) === String(updatedMessageData.id) ? updatedMessageData : msg
+                            );
+                        });
+                    }
                 }
 
             } catch (e) {
