@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import './Chat.css';
+import './NewChatBox.css';
 import { useNavigate } from "react-router-dom";
 function Chat() {
 
@@ -29,6 +30,10 @@ function Chat() {
     const [errorChats, setErrorChats] = useState(null);
     const [currentChatId, setCurrentChatId] = useState(1);
 
+    const [isCreatingChat, setIsCreatingChat] = useState(false);
+    const [newChatPartnerLogin, setNewChatPartnerLogin] = useState('');
+    const [createChatError, setCreateChatError] = useState(null);
+
     const contextMenuVisibleRef = useRef(false);
     const contextMenuPositionRef = useRef({ x: 0, y: 0 });
     const selectedMessageIdForMenuRef = useRef(null);
@@ -40,6 +45,10 @@ function Chat() {
     const wsRef = useRef(null);
     const setCurrentChatIdRef = useRef(setCurrentChatId);
     const currentChatIdRef = useRef(null);
+
+    const currentChat = userChats.find(chat => String(chat.id) === String(currentChatId));
+    const currentChatName = currentChat ? currentChat.name : 'Select a chat';
+    
 
     const scrollToBottom = useCallback((behavior = "smooth") => {
         messagesEndRef.current?.scrollIntoView({ behavior: behavior });
@@ -192,6 +201,69 @@ function Chat() {
         const options = { hour: '2-digit', minute: '2-digit' };
         return date.toLocaleTimeString(undefined, options);
     }
+
+
+
+    //
+    //  HANDLERS
+    //
+
+
+
+    const handleCreateChat = useCallback (async e => {
+        e.preventDefault();
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+            console.log('No token found, redirecting to login.');
+            navigate('/login');
+            return;
+        }
+
+        if (!newChatPartnerLogin.trim()) {
+            setCreateChatError('Please enter a user login.');
+            return;
+        }
+
+        setCreateChatError(null);
+        try {
+            const response = await fetch('http://localhost:3001/api/chats', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    otherUserLogin: newChatPartnerLogin.trim()
+                }),
+            })
+
+            const data = await response.json();
+            if (data.success) {
+                console.log('Chat creation/find successful:', data.chat);  
+
+                const createdOrFoundChat = data.chat; 
+
+                if (createdOrFoundChat && createdOrFoundChat.id) {
+                    console.log('Selecting the created/found chat:', createdOrFoundChat.id);
+                    
+                    setCurrentChatId(createdOrFoundChat.id); 
+                } else {
+                    console.warn('Chat creation/find reported success, but chat data is missing in response.');
+                }
+                
+            }
+
+            setNewChatPartnerLogin('');
+            setIsCreatingChat(false);
+            setCreateChatError(null);
+        } catch (err) {
+            console.error('Error during chat creation fetch:', error);
+            setCreateChatError('An unexpected error occurred while trying to create the chat.'); 
+        }
+
+    }, [error, navigate, newChatPartnerLogin]);
+
     const handleSendMessage = async (e) => {
         e.preventDefault();
 
@@ -364,6 +436,20 @@ function Chat() {
         setNewMessage('');
         setError(null);
     }, [setCurrentChatId, setEditingMessageId, setOriginalText, setError])
+
+
+
+
+
+    //
+    // USE EFFECTS
+    //
+
+
+
+
+
+
     useEffect(() => {
         setCurrentChatIdRef.current = setCurrentChatId;
     }, [])
@@ -502,6 +588,41 @@ function Chat() {
                             );
                         });
                     }
+                } else if (notification.type === 'new_chat') {
+                    const newChatData = notification.chat;
+                    if (newChatData && newChatData.id && newChatData.participants && Array.isArray(newChatData.participants)) {
+                        const currentUser = JSON.parse(storedUser);
+                        
+                        if (currentUser.login && currentUser.id) {
+                            const otherParticipant = newChatData.participants.find(p => String(p.id) !== String(currentUser.id));
+                            if (otherParticipant) {
+                                const chatNameForCurUser = otherParticipant.login;
+                                const chatToAdd = {
+                                    id: newChatData.id,
+                                    name: chatNameForCurUser,
+                                    type: newChatData.type,
+                                    created_at: newChatData.createdAt,
+                                    participants: newChatData.participants
+                                };
+
+                                setUserChats(prevUserChats => {
+                                    if (!prevUserChats.find(chat => String(chat.id) === String(chatToAdd.id))) {
+                                        console.log('Adding new chat to userChats state:', chatToAdd);
+                                        return [...prevUserChats, chatToAdd];
+                                    } else {
+                                        console.log('Skipping duplicate new chat notification for ID:', chatToAdd.id);
+                                        return prevUserChats;
+                                    }
+                                })
+                            } else {
+                                console.warn('Received new_chat notif, but could not find other participants');
+                            }
+                        } else {
+                            console.warn('Received new_chat notif, but current user data is not available');
+                        }
+                    } else {
+                        console.warn('Received invalid new_chat notif payload', notification);
+                    }
                 }
 
             } catch (e) {
@@ -544,12 +665,28 @@ function Chat() {
         console.error("Messages state is not an array:", messages);
         return <div className="error">Error: Invalid messages data</div>;
     }
+
+
+
+
+
+    //
+    //  JSX
+    //
+
+
+
+
+
     return (
         <div className="chat-container">
             <div className="chat-list">
                 {isLoadingChats}
                 {errorChats && <div className='chat-list-status error'> Error loading chats. {errorChats}</div>}
                 <div className="show-hide">Hide</div>
+                <button onClick={() => setIsCreatingChat(true)} className="new-chat-button">
+                    +
+                </button>
                 <div className="chat-items-container">
                     {userChats.map(chat => (
                         <div
@@ -575,7 +712,7 @@ function Chat() {
             </div>
             <div className="message-area">
                 <div className="messages-content">
-                    <div className="chat-name">{currentChatId}</div>
+                    <div className="chat-name">{currentChatName}</div>
                     <div className="messages" ref={messagesRef}>
                         {isLoadingMore && (
                             <div className="pagination-loader">Loading more messages...</div>
@@ -652,6 +789,25 @@ function Chat() {
                     </form>
                 </div>
             </div>
+            {isCreatingChat && (
+                <div className="modal-overlay">
+                    <div className="modal">
+                        <h3>Create New Personal Chat</h3>
+                        <form onSubmit={handleCreateChat}>
+                            <input
+                                type="text"
+                                placeholder="Enter user login"
+                                value={newChatPartnerLogin}
+                                onChange={e => setNewChatPartnerLogin(e.target.value)}
+                                required
+                            />
+                            {createChatError && <p className="error-message">{createChatError}</p>}
+                            <button type="submit">Create chat</button>
+                            <button type="button" onClick={() => setIsCreatingChat(false)}>Cancel</button>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div >
     );
 }
