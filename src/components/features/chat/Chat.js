@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import './Chat.css';
-import './NewChatBox.css';
+import NewChatModal from './NewChatModal/NewChatModal';
 import { useNavigate } from "react-router-dom";
 function Chat() {
 
@@ -834,26 +834,19 @@ function Chat() {
             </div>
         </div>
             {
-        isCreatingChat && (
-            <div className="modal-overlay">
-                <div className="modal">
-                    <h3>Create New Personal Chat</h3>
-                    <form onSubmit={handleCreateChat}>
-                        <input
-                            type="text"
-                            placeholder="Enter user login"
-                            value={newChatPartnerLogin}
-                            onChange={e => setNewChatPartnerLogin(e.target.value)}
-                            required
-                        />
-                        {createChatError && <p className="error-message">{createChatError}</p>}
-                        <button type="submit">Create chat</button>
-                        <button type="button" onClick={() => setIsCreatingChat(false)}>Cancel</button>
-                    </form>
-                </div>
-            </div>
-        )
-    }
+    isCreatingChat && (
+        <NewChatModal
+            isOpen={isCreatingChat}
+            onClose={() => {
+                setIsCreatingChat(false);
+                setCreateChatError(''); 
+            }}
+            onCreateChat={handleCreateChat}
+            isLoading={isLoading} 
+            error={createChatError}
+        />
+    )
+}
         </div >
     );
 }
