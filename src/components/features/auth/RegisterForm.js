@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './AuthForm.css';
 
@@ -77,7 +77,7 @@ function RegisterForm() {
         }
 
         if (!isValid) {
-            isLoading(false);
+            setIsLoading(false);
             return;
         }
 

@@ -35,7 +35,7 @@ function MessageInputForm({
                             placeholder="Type your message..."
                             value={newMessage}
                             onChange={e => onNewMessageChange(e.target.value)}
-                            disabled={isLoadingChats || userChatsLength === 0 || isLoading}
+                            disabled={userChatsLength === 0 || isLoading}
                             required
                         />
                         <button type="submit" disabled={isLoadingChats || userChatsLength === 0 || isLoading || !newMessage.trim() || wsStatus !== 'Connected'}>
