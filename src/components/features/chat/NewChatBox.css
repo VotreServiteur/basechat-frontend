@@ -1,107 +1,60 @@
-.new-chat-button {
-    position: absolute; /* <-- Абсолютное позиционирование */
-    bottom: 70px; /* <-- Отступ от нижнего края */
-    right: 20px; /* <-- Отступ от правого края */
-    width: 40px; /* <-- Фиксированная ширина */
-    height: 40px; /* <-- Фиксированная высота (равная ширине для круга) */
-    border-radius: 50%; /* <-- Делает кнопку круглой */
-
-    background-color: #54c9e4; /* Пример цвета */
-    color: #2e3549;
-    border: none;
-    cursor: pointer;
-    font-size: 1.5rem; /* <-- Увеличим размер плюса */
-    display: flex; /* <-- Используем flexbox для центрирования содержимого */
-    justify-content: center; /* <-- Центрируем по горизонтали */
-    align-items: center; /* <-- Центрируем по вертикали */
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3); /* <-- Добавим тень для визуального выделения */
-    z-index: 500; /* <-- Убедимся, что она выше других элементов в списке */
-    transition: background-color 0.2s ease;
-}
-
-.new-chat-button:hover {
-    background-color: #3d9db3; /* Пример цвета при наведении */
-}
-
-.new-chat-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-/* Стили для затемнения фона модального окна */
 .modal-overlay {
     position: fixed;
-    /* Фиксированное позиционирование поверх всего */
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
     background-color: rgba(0, 0, 0, 0.7);
-    /* Черный с полупрозрачностью */
     display: flex;
     justify-content: center;
-    /* Центрируем содержимое по горизонтали */
     align-items: center;
-    /* Центрируем содержимое по вертикали */
     z-index: 1000;
-    /* Убедимся, что находится поверх всего */
 }
 
-/* Стили для самого модального окна */
 .modal {
-    background-color: #2e3549;
-    /* Цвет фона окна */
-    color: #f8f8f2;
-    /* Цвет текста */
+    background-color: var(--bg-panel);
+    color: var(--text-primary);
     padding: 20px;
     border-radius: 8px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 4px 10px var(--shadow-color);
     z-index: 1001;
-    /* Выше оверлея */
     display: flex;
     flex-direction: column;
     gap: 15px;
-    /* Отступы между элементами */
     width: 300px;
-    /* Пример ширины */
     max-width: 90%;
-    /* Максимальная ширина на маленьких экранах */
+    border: 1px solid var(--border-color);
 }
 
 .modal h3 {
     margin-top: 0;
-    color: #f0c674;
-    /* Цвет заголовка */
+    color: var(--border-color);
 }
 
 .modal form {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    /* Отступы между элементами формы */
 }
 
 .modal input[type="text"] {
     padding: 10px;
-    border: 1px solid #f0c674;
+    border: 1px solid var(--border-color);
     border-radius: 4px;
-    background-color: #3a3a3a;
-    /* Цвет фона поля ввода */
-    color: #f8f8f2;
-    /* Цвет текста в поле ввода */
+    background-color: var(--bg-active);
+    color: var(--text-primary);
     font-size: 1rem;
 }
 
 .modal input[type="text"]::placeholder {
-    color: #949490;
+    color: var(--text-muted);
 }
 
 .modal input[type="text"]:focus {
     outline: none;
-    border-color: #54c9e4;
-    box-shadow: 0 0 0 2px rgba(84, 201, 228, 0.3);
+    border-color: var(--info-color);
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.3);
 }
-
 
 .modal button {
     padding: 10px;
@@ -113,32 +66,20 @@
 }
 
 .modal button[type="submit"] {
-    background-color: #f0c674;
-    /* Цвет кнопки "Создать" */
-    color: #2e3549;
+    background-color: var(--border-color);
+    color: var(--bg-dark);
 }
 
 .modal button[type="submit"]:hover {
-    background-color: #e0b866;
+    background-color: var(--accent-light);
 }
 
 .modal button[type="button"] {
-    /* Стили для кнопки "Отмена" */
-    background-color: #6c757d;
-    /* Пример нейтрального цвета */
-    color: #f8f8f2;
+    background-color: var(--bg-active);
+    color: var(--text-primary);
 }
 
 .modal button[type="button"]:hover {
-    background-color: #5a6268;
-}
-
-
-/* Стили для сообщений об ошибках */
-.error-message {
-    color: #d9534f;
-    /* Красный цвет для ошибок */
-    font-size: 0.9rem;
-    margin-top: 0;
-    margin-bottom: 10px;
+    background-color: var(--text-muted);
+    color: var(--bg-dark);
 }

@@ -29,10 +29,12 @@ function Chat() {
     const [isLoadingChats, setIsLoadingChats] = useState(false);
     const [errorChats, setErrorChats] = useState(null);
     const [currentChatId, setCurrentChatId] = useState(1);
+    const [isChatListVisible, setIsChatListVisible] = useState(true);
 
     const [isCreatingChat, setIsCreatingChat] = useState(false);
     const [newChatPartnerLogin, setNewChatPartnerLogin] = useState('');
     const [createChatError, setCreateChatError] = useState(null);
+
 
     const contextMenuVisibleRef = useRef(false);
     const contextMenuPositionRef = useRef({ x: 0, y: 0 });
@@ -48,7 +50,7 @@ function Chat() {
 
     const currentChat = userChats.find(chat => String(chat.id) === String(currentChatId));
     const currentChatName = currentChat ? currentChat.name : 'Select a chat';
-    
+
 
     const scrollToBottom = useCallback((behavior = "smooth") => {
         messagesEndRef.current?.scrollIntoView({ behavior: behavior });
@@ -89,11 +91,11 @@ function Chat() {
             } else {
                 const errorData = await response.json();
                 console.error('Failed to fetch user chats (HTTP error):', response.status, errorData);
-                setErrorChats(errorData.message || `Failed to fetch chat list (Status: ${response.status})`); // setErrorChats нужен в зависимостях useCallback
+                setErrorChats(errorData.message || `Failed to fetch chat list (Status: ${response.status})`);
             }
         } catch (err) {
             console.error('Network error while fetching user chats:', err);
-            setErrorChats('Network error while fetching chat list. Please try again.'); // setErrorChats нужен в зависимостях useCallback
+            setErrorChats('Network error while fetching chat list. Please try again.');
         } finally {
             setIsLoadingChats(false);
         }
@@ -202,7 +204,10 @@ function Chat() {
         return date.toLocaleTimeString(undefined, options);
     }
 
-
+    const formatChatListTime = (timestamp) => {
+        if (!timestamp) return '';
+        return formatMessageTime(timestamp);
+    };
 
     //
     //  HANDLERS
@@ -210,7 +215,11 @@ function Chat() {
 
 
 
-    const handleCreateChat = useCallback (async e => {
+    const handleToggleChatList = useCallback(() => {
+        setIsChatListVisible(prev => !prev);
+    }, []);
+
+    const handleCreateChat = useCallback(async e => {
         e.preventDefault();
 
         const token = localStorage.getItem('token');
@@ -240,18 +249,18 @@ function Chat() {
 
             const data = await response.json();
             if (data.success) {
-                console.log('Chat creation/find successful:', data.chat);  
+                console.log('Chat creation/find successful:', data.chat);
 
-                const createdOrFoundChat = data.chat; 
+                const createdOrFoundChat = data.chat;
 
                 if (createdOrFoundChat && createdOrFoundChat.id) {
                     console.log('Selecting the created/found chat:', createdOrFoundChat.id);
-                    
-                    setCurrentChatId(createdOrFoundChat.id); 
+
+                    setCurrentChatId(createdOrFoundChat.id);
                 } else {
                     console.warn('Chat creation/find reported success, but chat data is missing in response.');
                 }
-                
+
             }
 
             setNewChatPartnerLogin('');
@@ -259,7 +268,7 @@ function Chat() {
             setCreateChatError(null);
         } catch (err) {
             console.error('Error during chat creation fetch:', error);
-            setCreateChatError('An unexpected error occurred while trying to create the chat.'); 
+            setCreateChatError('An unexpected error occurred while trying to create the chat.');
         }
 
     }, [error, navigate, newChatPartnerLogin]);
@@ -502,8 +511,23 @@ function Chat() {
             return;
         }
         setCurrentUser(JSON.parse(storedUser));
-        fetchChats();
-        fetchMessages(50, currentChatId);
+        fetchChats().then(fetchedChats => {
+            if (fetchedChats && fetchedChats.length > 0) {
+                const firstChatId = fetchedChats[0].id;
+                console.log('Chats fetched, selecting first chat:', firstChatId);
+                setCurrentChatId(firstChatId);
+                fetchMessages(50, firstChatId);
+            } else {
+                console.log('No chats fetched for the user.');
+
+                setMessages([]);
+                setIsLoading(false);
+            }
+        }).catch(err => {
+
+            console.error("Error during initial chat fetch:", err);
+            setIsLoading(false);
+        });
 
         let ws = wsRef.current;
         const wsUrl = 'ws://localhost:3001';
@@ -592,7 +616,7 @@ function Chat() {
                     const newChatData = notification.chat;
                     if (newChatData && newChatData.id && newChatData.participants && Array.isArray(newChatData.participants)) {
                         const currentUser = JSON.parse(storedUser);
-                        
+
                         if (currentUser.login && currentUser.id) {
                             const otherParticipant = newChatData.participants.find(p => String(p.id) !== String(currentUser.id));
                             if (otherParticipant) {
@@ -680,13 +704,16 @@ function Chat() {
 
     return (
         <div className="chat-container">
-            <div className="chat-list">
-                {isLoadingChats}
-                {errorChats && <div className='chat-list-status error'> Error loading chats. {errorChats}</div>}
-                <div className="show-hide">Hide</div>
+
+            <div className={`chat-list ${isChatListVisible ? '' : 'hidden'}`}>
                 <button onClick={() => setIsCreatingChat(true)} className="new-chat-button">
                     +
                 </button>
+                <div className="chat-list-header">Your Chats</div>
+                {isLoadingChats}
+                {errorChats && <div className='chat-list-status error'> Error loading chats. {errorChats}</div>}
+
+                
                 <div className="chat-items-container">
                     {userChats.map(chat => (
                         <div
@@ -694,8 +721,18 @@ function Chat() {
                             className={`chat-list-item ${chat.id === currentChatId ? 'active' : ''}`}
                             onClick={() => handleChatSelect(chat.id)}
                         >
-                            <div className="chat-name">
-                                {chat.name}
+                            <div className="chat-info">
+                                <div className="chat-info-top">
+                                    <div className="side-chat-name">{chat.name}</div>
+                                    <div className="chat-last-message-time">
+                                        {chat.lastMessageCreatedAt ? formatChatListTime(chat.lastMessageCreatedAt) : '--:--'}
+                                    </div>
+                                </div>
+                                <div className="chat-info-bottom">
+                                    <div className="chat-last-message-snippet">
+                                        {chat.lastMessageText ? chat.lastMessageText : 'No messages yet.'}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     ))}
@@ -711,103 +748,113 @@ function Chat() {
                 }}>LogOut</div>
             </div>
             <div className="message-area">
-                <div className="messages-content">
-                    <div className="chat-name">{currentChatName}</div>
-                    <div className="messages" ref={messagesRef}>
-                        {isLoadingMore && (
-                            <div className="pagination-loader">Loading more messages...</div>
-                        )}
-                        {messages.map((message, index) => {
-                            const previousMessage = messages[index - 1];
-                            const showDateSeparator = index === 0 || !isSameDay(message.created_at, previousMessage.created_at);
-                            return (
-                                <React.Fragment key={message.id}>
-                                    {showDateSeparator && (
-                                        <div className="date-separator">
-                                            {formatDateSeparator(message.created_at)}
-                                        </div>
-                                    )}
-                                    <div
-                                        className={`message ${currentUser && String(message.sender_id) === String(currentUser.id) ? 'right' : 'left'}`}
-                                        onContextMenu={e => handleContextMenu(e, message)}
-                                    >
-                                        {message.sender_login && <div className="sender-login">{message.sender_login}</div>}
-                                        <div className="message-text">{message.text}</div>
-                                        <div className="message-date">{formatMessageTime(message.created_at)}</div>
-                                    </div>
-                                </React.Fragment>
-                            )
-                        })}
-                        <div ref={messagesEndRef} />
+                {(!isLoadingChats && !currentChat) ? (
+                    <div className="no-chats-placeholder">
+                        <p>Press on + to start messaging or select existing chat.</p>
                     </div>
-                    {contextMenuVisible && (
-                        <div
-                            className="context-menu"
-                            style={{ top: contextMenuPosition.y, left: contextMenuPosition.x }}
-                        >
-                            <div
-                                className="context-menu-item delete-item"
-                                onClick={() => handleDeleteMessage(selectedMessageIdForMenu)}
-                            >
-                                Delete
-                            </div>
-                            <div
-                                className="context-menu-item edit-item"
-                                onClick={() => handleEditMessage(selectedMessageIdForMenu)}
-                            >
-                                Edit
-                            </div>
+                ) : (
+                    <div className="messages-content">
+                        <button onClick={handleToggleChatList} className="toggle-chat-list-button">
+                            {isChatListVisible ? '◀' : '▶'}
+                        </button>
+                        <div className="chat-name">{currentChatName}</div>
+                        <div className="messages" ref={messagesRef}>
+                            {isLoadingMore && (
+                                <div className="pagination-loader">Loading more messages...</div>
+                            )}
+                            {messages.map((message, index) => {
+                                const previousMessage = messages[index - 1];
+                                const showDateSeparator = index === 0 || !isSameDay(message.created_at, previousMessage.created_at);
+                                return (
+                                    <React.Fragment key={message.id}>
+                                        {showDateSeparator && (
+                                            <div className="date-separator">
+                                                {formatDateSeparator(message.created_at)}
+                                            </div>
+                                        )}
+                                        <div
+                                            className={`message ${currentUser && String(message.sender_id) === String(currentUser.id) ? 'right' : 'left'}`}
+                                            onContextMenu={e => handleContextMenu(e, message)}
+                                        >
+                                            {message.sender_login && <div className="sender-login">{message.sender_login}</div>}
+                                            <div className="message-text">{message.text}</div>
+                                            <div className="message-date">{formatMessageTime(message.created_at)}</div>
+                                        </div>
+                                    </React.Fragment>
+                                )
+                            })}
+                            <div ref={messagesEndRef} />
                         </div>
-                    )}
-                </div>
-                <div className="bottom-input-area" ref={bottomInputAreaRef}>
-                    {editingMessageId && (
-                        <div className="editing-indicator">
-                            <div className="original-text-preview">
-                                <span className="editing-message">Editing message:</span>
-                                <span className="original-text">{originalText}</span>
+                        {contextMenuVisible && (
+                            <div
+                                className="context-menu"
+                                style={{ top: contextMenuPosition.y, left: contextMenuPosition.x }}
+                            >
+                                <div
+                                    className="context-menu-item delete-item"
+                                    onClick={() => handleDeleteMessage(selectedMessageIdForMenu)}
+                                >
+                                    Delete
+                                </div>
+                                <div
+                                    className="context-menu-item edit-item"
+                                    onClick={() => handleEditMessage(selectedMessageIdForMenu)}
+                                >
+                                    Edit
+                                </div>
                             </div>
-                            <button
-                                className="cancel-edit-button"
-                                onClick={handleCancelEdit}
-                                disabled={isLoading}
-                            >&#x2716;</button>
+                        )}
+                    </div>)}
+                < div className="bottom-input-area" ref={bottomInputAreaRef}>
+                {editingMessageId && (
+                    <div className="editing-indicator">
+                        <div className="original-text-preview">
+                            <span className="editing-message">Editing message:</span>
+                            <span className="original-text">{originalText}</span>
                         </div>
-                    )}
-                    <form className="message-form" onSubmit={handleSendMessage}>
+                        <button
+                            className="cancel-edit-button"
+                            onClick={handleCancelEdit}
+                            disabled={isLoading}
+                        >&#x2716;</button>
+                    </div>
+                )}
+                <form className="message-form" onSubmit={handleSendMessage}>
+                    <input
+                        type="text"
+                        placeholder="Type your message..."
+                        value={newMessage}
+                        onChange={e => setNewMessage(e.target.value)}
+                        disabled={isLoadingChats || userChats.length === 0 || isLoading}
+                        required
+                    />
+                    <button type="submit" disabled={isLoadingChats || userChats.length === 0 || isLoading || !newMessage.trim() || wsStatus !== 'Connected'}>
+                        {editingMessageId ? '\u2713' : '\u27A4'}
+                    </button>
+                </form>
+            </div>
+        </div>
+            {
+        isCreatingChat && (
+            <div className="modal-overlay">
+                <div className="modal">
+                    <h3>Create New Personal Chat</h3>
+                    <form onSubmit={handleCreateChat}>
                         <input
                             type="text"
-                            placeholder="Type your message..."
-                            value={newMessage}
-                            onChange={e => setNewMessage(e.target.value)}
-                            disabled={isLoading}
+                            placeholder="Enter user login"
+                            value={newChatPartnerLogin}
+                            onChange={e => setNewChatPartnerLogin(e.target.value)}
                             required
                         />
-                        <button type="submit" disabled={isLoading || !newMessage.trim() || wsStatus !== 'Connected'}>
-                            {editingMessageId ? '\u2713' : '\u27A4'}
-                        </button>
+                        {createChatError && <p className="error-message">{createChatError}</p>}
+                        <button type="submit">Create chat</button>
+                        <button type="button" onClick={() => setIsCreatingChat(false)}>Cancel</button>
                     </form>
                 </div>
             </div>
-            {isCreatingChat && (
-                <div className="modal-overlay">
-                    <div className="modal">
-                        <h3>Create New Personal Chat</h3>
-                        <form onSubmit={handleCreateChat}>
-                            <input
-                                type="text"
-                                placeholder="Enter user login"
-                                value={newChatPartnerLogin}
-                                onChange={e => setNewChatPartnerLogin(e.target.value)}
-                                required
-                            />
-                            {createChatError && <p className="error-message">{createChatError}</p>}
-                            <button type="submit">Create chat</button>
-                            <button type="button" onClick={() => setIsCreatingChat(false)}>Cancel</button>
-                        </form>
-                    </div>
-                </div>
-            )}
+        )
+    }
         </div >
     );
 }
