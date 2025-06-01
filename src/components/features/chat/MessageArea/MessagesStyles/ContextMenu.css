@@ -1,0 +1,30 @@
+.context-menu {
+    position: fixed;
+    z-index: 1000;
+    background-color: var(--accent);
+    border: 1px solid var(--border-color);
+    box-shadow: 2px 2px 5px var(--shadow-color);
+    border-radius: 4px;
+    min-width: 120px;
+}
+
+.context-menu-item {
+    padding: 10px 15px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-primary);
+    user-select: none;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.context-menu-item:hover {
+    background-color: var(--accent-light);
+}
+
+.context-menu-item.delete-item {
+    color: var(--text-error);
+}
+
+.context-menu-item.delete-item:hover {
+    background-color: rgba(217, 84, 79, 0.3);
+}

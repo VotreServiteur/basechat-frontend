@@ -3,6 +3,7 @@ import './Chat.css';
 
 import NewChatModal from './NewChatModal/NewChatModal';
 import ChatList from './ChatList/ChatList';
+import MessageArea from './MessageArea/MessageArea';
 
 import { useNavigate } from "react-router-dom";
 
@@ -105,7 +106,7 @@ function Chat() {
         }
     }, [navigate, setUserChats, setErrorChats]);
 
-    const fetchMessages = useCallback(async ( chatId, limit, beforeId = null) => {
+    const fetchMessages = useCallback(async (chatId, limit, beforeId = null) => {
         setIsLoading(true);
         setError(null);
         const token = localStorage.getItem('token');
@@ -455,12 +456,12 @@ function Chat() {
 
     const handleLogout = (() => {
         localStorage.removeItem('token');
-                    localStorage.removeItem('userLogin');
-                    localStorage.removeItem('user');
-                    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                        wsRef.current.close();
-                    }
-                    navigate('/login');
+        localStorage.removeItem('userLogin');
+        localStorage.removeItem('user');
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            wsRef.current.close();
+        }
+        navigate('/login');
     });
 
 
@@ -488,7 +489,7 @@ function Chat() {
                 if (oldestMessage) {
                     console.log('Fetching messages before ID:', oldestMessage.id);
                     setIsLoadingMore(true);
-                    fetchMessages( currentChatId, 50, oldestMessage.id);
+                    fetchMessages(currentChatId, 50, oldestMessage.id);
                 } else {
                     console.log('No oldest message found in list.');
                     setHasMoreMessages(false);
@@ -527,7 +528,7 @@ function Chat() {
         setCurrentUser(JSON.parse(storedUser));
         fetchChats().then(fetchedChats => {
             if (fetchedChats && fetchedChats.length > 0) {
-                console.log('Chats fetched');                
+                console.log('Chats fetched');
             } else {
                 console.log('No chats fetched for the user.');
 
@@ -709,10 +710,6 @@ function Chat() {
     //  JSX
     //
 
-
-
-
-
     return (
         <div className="chat-container">
 
@@ -725,110 +722,59 @@ function Chat() {
                 isLoadingChats={isLoadingChats}
                 errorChats={errorChats}
                 onLogout={handleLogout}
-                formatChatListTime={formatChatListTime}  
+                formatChatListTime={formatChatListTime}
+            />
+            <button onClick={handleToggleChatList} className="toggle-chat-list-button">
+                {isChatListVisible ? '◀' : '▶'}
+            </button>
+            <MessageArea
+                currentChat={currentChat}
+                currentChatName={currentChatName}
+                wsStatus={wsStatus}
+                messages={messages}
+                currentUser={currentUser}
+                isLoading={isLoading}
+                isLoadingMore={isLoadingMore}
+                messagesEndRef={messagesEndRef}
+                messagesRef={messagesRef}
+                onContextMenu={handleContextMenu}
+
+                isSameDay={isSameDay}
+                formatDateSeparator={formatDateSeparator}
+                formatMessageTime={formatMessageTime}
+                
+                newMessage={newMessage}
+                onNewMessageChange={setNewMessage}
+                onSendMessage={handleSendMessage}
+                editingMessageId={editingMessageId}
+                originalText={originalText}
+                onCancelEdit={handleCancelEdit}
+                isLoadingChats={isLoadingChats}
+                userChatsLength={userChats.length}
+                bottomInputAreaRef={bottomInputAreaRef}
+                
+                contextMenuVisible={contextMenuVisible}
+                contextMenuPositionY={contextMenuPosition.y}
+                contextMenuPositionX={contextMenuPosition.x}
+                selectedMessageIdForMenu={selectedMessageIdForMenu}
+                onDeleteMessage={handleDeleteMessage}
+                onEditMessage={handleEditMessage}
             />
 
-            <div className="message-area">
-                {(!isLoadingChats && !currentChat) ? (
-                    <div className="no-chats-placeholder">
-                        <p>Press on + to start messaging or select existing chat.</p>
-                    </div>
-                ) : (
-                    <div className="messages-content">
-                        <button onClick={handleToggleChatList} className="toggle-chat-list-button">
-                            {isChatListVisible ? '◀' : '▶'}
-                        </button>
-                        <div className="chat-name">{currentChatName}</div>
-                        <div className="messages" ref={messagesRef}>
-                            {isLoadingMore && (
-                                <div className="pagination-loader">Loading more messages...</div>
-                            )}
-                            {messages.map((message, index) => {
-                                const previousMessage = messages[index - 1];
-                                const showDateSeparator = index === 0 || !isSameDay(message.created_at, previousMessage.created_at);
-                                return (
-                                    <React.Fragment key={message.id}>
-                                        {showDateSeparator && (
-                                            <div className="date-separator">
-                                                {formatDateSeparator(message.created_at)}
-                                            </div>
-                                        )}
-                                        <div
-                                            className={`message ${currentUser && String(message.sender_id) === String(currentUser.id) ? 'right' : 'left'}`}
-                                            onContextMenu={e => handleContextMenu(e, message)}
-                                        >
-                                            {message.sender_login && <div className="sender-login">{message.sender_login}</div>}
-                                            <div className="message-text">{message.text}</div>
-                                            <div className="message-date">{formatMessageTime(message.created_at)}</div>
-                                        </div>
-                                    </React.Fragment>
-                                )
-                            })}
-                            <div ref={messagesEndRef} />
-                        </div>
-                        {contextMenuVisible && (
-                            <div
-                                className="context-menu"
-                                style={{ top: contextMenuPosition.y, left: contextMenuPosition.x }}
-                            >
-                                <div
-                                    className="context-menu-item delete-item"
-                                    onClick={() => handleDeleteMessage(selectedMessageIdForMenu)}
-                                >
-                                    Delete
-                                </div>
-                                <div
-                                    className="context-menu-item edit-item"
-                                    onClick={() => handleEditMessage(selectedMessageIdForMenu)}
-                                >
-                                    Edit
-                                </div>
-                            </div>
-                        )}
-                    </div>)}
-                < div className="bottom-input-area" ref={bottomInputAreaRef}>
-                {editingMessageId && (
-                    <div className="editing-indicator">
-                        <div className="original-text-preview">
-                            <span className="editing-message">Editing message:</span>
-                            <span className="original-text">{originalText}</span>
-                        </div>
-                        <button
-                            className="cancel-edit-button"
-                            onClick={handleCancelEdit}
-                            disabled={isLoading}
-                        >&#x2716;</button>
-                    </div>
-                )}
-                <form className="message-form" onSubmit={handleSendMessage}>
-                    <input
-                        type="text"
-                        placeholder="Type your message..."
-                        value={newMessage}
-                        onChange={e => setNewMessage(e.target.value)}
-                        disabled={isLoadingChats || userChats.length === 0 || isLoading}
-                        required
-                    />
-                    <button type="submit" disabled={isLoadingChats || userChats.length === 0 || isLoading || !newMessage.trim() || wsStatus !== 'Connected'}>
-                        {editingMessageId ? '\u2713' : '\u27A4'}
-                    </button>
-                </form>
-            </div>
-        </div>
-                {
-                    isCreatingChat && (
+            {
+                isCreatingChat && (
                     <NewChatModal
                         isOpen={isCreatingChat}
                         onClose={() => {
                             setIsCreatingChat(false);
                             setCreateChatError('');
-                            setNewChatPartnerLogin(''); 
+                            setNewChatPartnerLogin('');
                         }}
                         onCreateChat={handleCreateChat}
-                        isLoading={isLoading} 
+                        isLoading={isLoading}
                         error={createChatError}
                         newChatPartnerLogin={newChatPartnerLogin}
-                        onNewChatPartnerLoginChange={setNewChatPartnerLogin} 
+                        onNewChatPartnerLoginChange={setNewChatPartnerLogin}
                     />
                 )
             }

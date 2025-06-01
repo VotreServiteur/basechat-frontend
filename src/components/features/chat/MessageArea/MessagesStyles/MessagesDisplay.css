@@ -1,0 +1,35 @@
+.messages {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-top: 1rem;
+    padding-left: 1vw;
+    padding-right: 1vw;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) var(--bg-panel);
+    height: 0;
+    flex-grow: 1;
+    box-sizing: border-box;
+}
+
+.pagination-loader {
+    text-align: center;
+    padding: 10px;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.date-separator {
+    text-align: center;
+    font-size: 0.9rem;
+    color: var(--border-color);
+    background: var(--accent);
+    border-radius: 8px;
+    align-self: center;
+    padding: 5px 10px;
+}
