@@ -101,7 +101,7 @@ function Chat() {
         }
     }, [navigate, setUserChats, setErrorChats]);
 
-    const fetchMessages = useCallback(async (limit, chatId, beforeId = null) => {
+    const fetchMessages = useCallback(async ( chatId, limit, beforeId = null) => {
         setIsLoading(true);
         setError(null);
         const token = localStorage.getItem('token');
@@ -437,6 +437,7 @@ function Chat() {
             setSelectedMessageIdForMenu(null);
         }
     };
+
     const handleChatSelect = useCallback((chatId) => {
         console.log('Chat selected:', chatId);
         setCurrentChatId(chatId);
@@ -444,7 +445,8 @@ function Chat() {
         setOriginalText('');
         setNewMessage('');
         setError(null);
-    }, [setCurrentChatId, setEditingMessageId, setOriginalText, setError])
+        fetchMessages(chatId, 50);
+    }, [setCurrentChatId, setEditingMessageId, setOriginalText, setError, fetchMessages])
 
 
 
@@ -474,7 +476,7 @@ function Chat() {
                 if (oldestMessage) {
                     console.log('Fetching messages before ID:', oldestMessage.id);
                     setIsLoadingMore(true);
-                    fetchMessages(50, currentChatId, oldestMessage.id);
+                    fetchMessages( currentChatId, 50, oldestMessage.id);
                 } else {
                     console.log('No oldest message found in list.');
                     setHasMoreMessages(false);
@@ -513,10 +515,7 @@ function Chat() {
         setCurrentUser(JSON.parse(storedUser));
         fetchChats().then(fetchedChats => {
             if (fetchedChats && fetchedChats.length > 0) {
-                const firstChatId = fetchedChats[0].id;
-                console.log('Chats fetched, selecting first chat:', firstChatId);
-                setCurrentChatId(firstChatId);
-                fetchMessages(50, firstChatId);
+                console.log('Chats fetched');                
             } else {
                 console.log('No chats fetched for the user.');
 
@@ -680,7 +679,7 @@ function Chat() {
             }
             document.removeEventListener('click', handleOutsideClick);
         };
-    }, [navigate, fetchMessages, setCurrentUser, setWsStatus, fetchChats, scrollToBottom, setMessagesRef, setNewMessageRef, wsRef, currentChatId]);
+    }, [navigate, fetchMessages, setCurrentUser, setWsStatus, fetchChats, scrollToBottom, setMessagesRef, setNewMessageRef, wsRef]);
 
     if (error) {
         return <div className="error">Error: {error}</div>;
