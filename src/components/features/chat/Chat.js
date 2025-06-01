@@ -1,7 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import './Chat.css';
+
 import NewChatModal from './NewChatModal/NewChatModal';
+import ChatList from './ChatList/ChatList';
+
 import { useNavigate } from "react-router-dom";
+
 function Chat() {
 
     const [messages, setMessages] = useState([]);
@@ -446,10 +450,18 @@ function Chat() {
         setNewMessage('');
         setError(null);
         fetchMessages(chatId, 50);
-    }, [setCurrentChatId, setEditingMessageId, setOriginalText, setError, fetchMessages])
+    }, [setCurrentChatId, setEditingMessageId, setOriginalText, setError, fetchMessages]);
 
 
-
+    const handleLogout = (() => {
+        localStorage.removeItem('token');
+                    localStorage.removeItem('userLogin');
+                    localStorage.removeItem('user');
+                    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                        wsRef.current.close();
+                    }
+                    navigate('/login');
+    });
 
 
     //
@@ -704,48 +716,18 @@ function Chat() {
     return (
         <div className="chat-container">
 
-            <div className={`chat-list ${isChatListVisible ? '' : 'hidden'}`}>
-                <button onClick={() => setIsCreatingChat(true)} className="new-chat-button">
-                    +
-                </button>
-                <div className="chat-list-header">Your Chats</div>
-                {isLoadingChats}
-                {errorChats && <div className='chat-list-status error'> Error loading chats. {errorChats}</div>}
+            <ChatList
+                userChats={userChats}
+                currentChatId={currentChatId}
+                onSelectChat={handleChatSelect}
+                onNewChatClick={() => setIsCreatingChat(true)}
+                isChatListVisible={isChatListVisible}
+                isLoadingChats={isLoadingChats}
+                errorChats={errorChats}
+                onLogout={handleLogout}
+                formatChatListTime={formatChatListTime}  
+            />
 
-                
-                <div className="chat-items-container">
-                    {userChats.map(chat => (
-                        <div
-                            key={chat.id}
-                            className={`chat-list-item ${chat.id === currentChatId ? 'active' : ''}`}
-                            onClick={() => handleChatSelect(chat.id)}
-                        >
-                            <div className="chat-info">
-                                <div className="chat-info-top">
-                                    <div className="side-chat-name">{chat.name}</div>
-                                    <div className="chat-last-message-time">
-                                        {chat.lastMessageCreatedAt ? formatChatListTime(chat.lastMessageCreatedAt) : '--:--'}
-                                    </div>
-                                </div>
-                                <div className="chat-info-bottom">
-                                    <div className="chat-last-message-snippet">
-                                        {chat.lastMessageText ? chat.lastMessageText : 'No messages yet.'}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-                <div className="logout-button" onClick={() => {
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('userLogin');
-                    localStorage.removeItem('user');
-                    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                        wsRef.current.close();
-                    }
-                    navigate('/login');
-                }}>LogOut</div>
-            </div>
             <div className="message-area">
                 {(!isLoadingChats && !currentChat) ? (
                     <div className="no-chats-placeholder">
@@ -833,20 +815,23 @@ function Chat() {
                 </form>
             </div>
         </div>
-            {
-    isCreatingChat && (
-        <NewChatModal
-            isOpen={isCreatingChat}
-            onClose={() => {
-                setIsCreatingChat(false);
-                setCreateChatError(''); 
-            }}
-            onCreateChat={handleCreateChat}
-            isLoading={isLoading} 
-            error={createChatError}
-        />
-    )
-}
+                {
+                    isCreatingChat && (
+                    <NewChatModal
+                        isOpen={isCreatingChat}
+                        onClose={() => {
+                            setIsCreatingChat(false);
+                            setCreateChatError('');
+                            setNewChatPartnerLogin(''); 
+                        }}
+                        onCreateChat={handleCreateChat}
+                        isLoading={isLoading} 
+                        error={createChatError}
+                        newChatPartnerLogin={newChatPartnerLogin}
+                        onNewChatPartnerLoginChange={setNewChatPartnerLogin} 
+                    />
+                )
+            }
         </div >
     );
 }
