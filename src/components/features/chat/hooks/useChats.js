@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getTokenOrRedirect, handleAuthFailure } from "../utils/useAuthCheck";
+import { getTokenOrRedirect, handleAuthFailure } from "../utils/useAuthUtils";
 import { useNavigate } from "react-router-dom";
 
 function useChats(onChatSelectCallback) {
@@ -8,6 +8,10 @@ function useChats(onChatSelectCallback) {
     const [errorChats, setErrorChats] = useState(null);
     const [userChats, setUserChats] = useState([]);
     const [currentChatId, setCurrentChatId] = useState(1);
+
+    const [isCreatingChat, setIsCreatingChat] = useState(false);
+    const [newChatPartnerLogin, setNewChatPartnerLogin] = useState('');
+    const [createChatError, setCreateChatError] = useState(null);
 
     const navigate = useNavigate();
 
@@ -60,6 +64,48 @@ function useChats(onChatSelectCallback) {
         }
     }, [navigate]);
 
+    const handleCreateChat = useCallback(async (login) => {
+    const token = getTokenOrRedirect(navigate, () => setIsCreatingChat(false));
+
+    if (!login.trim()) {
+        setCreateChatError('Please enter a user login.');
+        return;
+    }
+
+    setCreateChatError(null);
+    try {
+        const response = await fetch('http://localhost:3001/api/chats', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                otherUserLogin: login.trim()
+            }),
+        });
+
+        const data = await response.json();
+        if (data.success && data.chat?.id) {
+            setCurrentChatId(data.chat.id);
+        }
+
+        setNewChatPartnerLogin('');
+        setIsCreatingChat(false);
+        setCreateChatError(null);
+    } catch (err) {
+        console.error('Error during chat creation fetch:', err);
+        setCreateChatError('An unexpected error occurred while trying to create the chat.');
+    }
+}, [currentChatId, navigate]);
+
+    const handleClose = useCallback(() => {
+        setIsCreatingChat(false);
+        setCreateChatError('');
+        setNewChatPartnerLogin('');
+    }, [])
+
+
     const handleChatSelect = useCallback((chatId) => {
         console.log('Chat selected:', chatId);
         setCurrentChatId(chatId);
@@ -84,7 +130,13 @@ function useChats(onChatSelectCallback) {
         currentChatId,
         currentChatIdRef,
         userChatsLength,
+        isCreatingChat,
+        newChatPartnerLogin,
+        createChatError,
+        setIsCreatingChat,
         handleChatSelect,
+        handleCreateChat,
+        handleClose,
         fetchChats
     }
 }

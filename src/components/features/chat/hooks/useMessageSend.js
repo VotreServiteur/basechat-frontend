@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { getTokenOrRedirect, handleAuthFailure } from "../utils/useAuthCheck";
+import { getTokenOrRedirect, handleAuthFailure } from "../utils/useAuthUtils";
 
 
 function useMessagesSend(chatHook, editorHook, newMessage, setNewMessage, scrollToBottomCb, setError, currentUser) {

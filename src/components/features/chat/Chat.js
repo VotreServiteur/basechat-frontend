@@ -7,11 +7,13 @@ import MessageArea from './MessageArea/MessageArea';
 
 import { useNavigate } from "react-router-dom";
 import useChats from "./hooks/useChats";
+import useContextMenu from "./hooks/useContextMenu.js";
 import useMessages from "./hooks/useMessages";
 import useMessageEditor from "./hooks/useMessageEditor";
 import useMessageSend from "./hooks/useMessageSend";
+
 import { isSameDay, formatDateSeparator, formatMessageTime, formatChatListTime } from './utils/dateFormatter';
-import { getTokenOrRedirect } from "./utils/useAuthCheck";
+import { handleAuthFailure } from "./utils/useAuthUtils.js";
 
 
 function Chat() {
@@ -20,22 +22,9 @@ function Chat() {
 
     const [currentUser, setCurrentUser] = useState(null);
 
-
     const [wsStatus, setWsStatus] = useState('Connecting...');
-
-    const [contextMenuVisible, setContextMenuVisible] = useState(false);
-    const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
-    const [selectedMessageIdForMenu, setSelectedMessageIdForMenu] = useState(null);
-
     const [isChatListVisible, setIsChatListVisible] = useState(true);
 
-    const [isCreatingChat, setIsCreatingChat] = useState(false);
-    const [newChatPartnerLogin, setNewChatPartnerLogin] = useState('');
-    const [createChatError, setCreateChatError] = useState(null);
-
-    const contextMenuVisibleRef = useRef(false);
-    const contextMenuPositionRef = useRef({ x: 0, y: 0 });
-    const selectedMessageIdForMenuRef = useRef(null);
     const messagesEndRef = useRef(null);
     const messagesRef = useRef(null);
 
@@ -54,9 +43,9 @@ function Chat() {
 
     const messagesHook = useMessages(setMessagesRef, setError, scrollToBottom);
 
+    const contextMenuHook = useContextMenu(currentUser);
 
-
-    const editorHook = useMessageEditor(messages, setNewMessage, setError);
+    const editorHook = useMessageEditor(messages, setNewMessage, setError, currentUser, contextMenuHook);
 
     const onChatSelectCallback = useCallback(async (chatId) => {
         editorHook.setEditingMessageId(null);
@@ -69,8 +58,7 @@ function Chat() {
     const chatHook = useChats(onChatSelectCallback);
 
 
-    const sendHook = useMessageSend(chatHook, editorHook, newMessage, setNewMessage, scrollToBottom, setError, currentUser);;
-
+    const sendHook = useMessageSend(chatHook, editorHook, newMessage, setNewMessage, scrollToBottom, setError, currentUser);
 
     //
     //  HANDLERS
@@ -81,122 +69,12 @@ function Chat() {
     }, []);
 
 
-    const handleCreateChat = useCallback(async e => {
-        e.preventDefault();
-
-        const token = getTokenOrRedirect(navigate, () => setIsCreatingChat(false));
-
-        if (!newChatPartnerLogin.trim()) {
-            setCreateChatError('Please enter a user login.');
-            return;
-        }
-
-        setCreateChatError(null);
-        try {
-            const response = await fetch('http://localhost:3001/api/chats', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    otherUserLogin: newChatPartnerLogin.trim()
-                }),
-            })
-
-            const data = await response.json();
-            if (data.success) {
-                console.log('Chat creation/find successful:', data.chat);
-
-                const createdOrFoundChat = data.chat;
-
-                if (createdOrFoundChat && createdOrFoundChat.id) {
-                    console.log('Selecting the created/found chat:', createdOrFoundChat.id);
-
-                    chatHook.currentChatId(createdOrFoundChat.id);
-                } else {
-                    console.warn('Chat creation/find reported success, but chat data is missing in response.');
-                }
-
-            }
-
-            setNewChatPartnerLogin('');
-            setIsCreatingChat(false);
-            setCreateChatError(null);
-        } catch (err) {
-            console.error('Error during chat creation fetch:', error);
-            setCreateChatError('An unexpected error occurred while trying to create the chat.');
-        }
-
-    }, [error, navigate, newChatPartnerLogin, chatHook]);
-
-
-
-
-    const handleDeleteMessage = async (messageId) => {
-        console.log('Attempting to delete message with ID:', messageId);
-        setContextMenuVisible(false);
-        setSelectedMessageIdForMenu(null);
-        if (!currentUser || !messageId) {
-            console.log('Cannot delete: currentUser not loaded or no messageId.');
-            return;
-        }
-        const token = localStorage.getItem('token');
-        if (!token) {
-            console.log('No token found for deletion, redirecting to login.');
-            navigate('/login');
-            return;
-        }
-        if (!window.confirm('Are you sure you want to delete this message?')) {
-            console.log('Deletion cancelled by user.');
-            return;
-        }
-        try {
-            const response = await fetch(`http://localhost:3001/api/messages/${messageId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            });
-            if (!response.ok) {
-                const errorData = await response.json();
-                setError(errorData.message || 'Failed to delete message');
-                console.error('Failed to delete message:', response.status, errorData);
-            } else {
-                const result = await response.json();
-                console.log('Message deleted (HTTP response):', result);
-            }
-        } catch (error) {
-            setError('Network error while deleting message. Please try again.');
-            console.error('Error deleting message:', error);
-        }
-    };
-
-
-
-
-
-    const handleContextMenu = (e, message) => {
-        e.preventDefault();
-        if (currentUser && String(message.sender_id) === String(currentUser.id)) {
-            setContextMenuPosition({ x: e.clientX, y: e.clientY });
-            setSelectedMessageIdForMenu(message.id);
-            setContextMenuVisible(true);
-        } else {
-            setContextMenuVisible(false);
-            setSelectedMessageIdForMenu(null);
-        }
-    };
-
 
     const handleLogout = (() => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('userLogin');
-        localStorage.removeItem('user');
         if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
             wsRef.current.close();
         }
-        navigate('/login');
+        handleAuthFailure(navigate);
     });
 
 
@@ -236,11 +114,6 @@ function Chat() {
     useEffect(() => {
         setNewMessageRef.current = setNewMessage;
     }, []);
-    useEffect(() => {
-        contextMenuVisibleRef.current = contextMenuVisible;
-        contextMenuPositionRef.current = contextMenuPosition;
-        selectedMessageIdForMenuRef.current = selectedMessageIdForMenu;
-    }, [contextMenuVisible, contextMenuPosition, selectedMessageIdForMenu]);
 
 
 
@@ -324,7 +197,7 @@ function Chat() {
                     } else {
                         if (message) {
                             console.log(`Received new message for chat ID ${message.chat_id}, but current active chat is ${activeChatId}`);
-                            
+
                         } else {
                             console.warn('Received new_message notification without messageData.');
                         }
@@ -358,7 +231,6 @@ function Chat() {
                     const newChatData = notification.chat;
                     if (newChatData && newChatData.id && newChatData.participants && Array.isArray(newChatData.participants)) {
                         const currentUser = JSON.parse(storedUser);
-
                         if (currentUser.login && currentUser.id) {
                             const otherParticipant = newChatData.participants.find(p => String(p.id) !== String(currentUser.id));
                             if (otherParticipant) {
@@ -380,14 +252,8 @@ function Chat() {
                                         return prevUserChats;
                                     }
                                 })
-                            } else {
-                                console.warn('Received new_chat notif, but could not find other participants');
                             }
-                        } else {
-                            console.warn('Received new_chat notif, but current user data is not available');
                         }
-                    } else {
-                        console.warn('Received invalid new_chat notif payload', notification);
                     }
                 }
 
@@ -407,9 +273,9 @@ function Chat() {
         wsRef.current = ws;
 
         const handleOutsideClick = () => {
-            if (contextMenuVisibleRef.current) {
-                setContextMenuVisible(false);
-                setSelectedMessageIdForMenu(null);
+            if (contextMenuHook.contextMenuVisibleRef.current) {
+                contextMenuHook.setContextMenuVisible(false);
+                contextMenuHook.setSelectedMessageIdForMenu(null);
             }
         };
         document.addEventListener('click', handleOutsideClick);
@@ -423,6 +289,7 @@ function Chat() {
             document.removeEventListener('click', handleOutsideClick);
         };
     }, [navigate, setCurrentUser, setWsStatus, scrollToBottom, setMessagesRef, setNewMessageRef, wsRef]);
+
     if (error) {
         return <div className="error">Error: {error}</div>;
     }
@@ -438,12 +305,11 @@ function Chat() {
 
     return (
         <div className="chat-container">
-
             <ChatList
                 userChats={chatHook.userChats}
                 currentChatId={chatHook.currentChatId}
                 onSelectChat={chatHook.handleChatSelect}
-                onNewChatClick={() => setIsCreatingChat(true)}
+                onNewChatClick={() => chatHook.setIsCreatingChat(true)}
                 isChatListVisible={isChatListVisible}
                 isLoadingChats={chatHook.isLoadingChats}
                 errorChats={chatHook.errorChats}
@@ -463,7 +329,7 @@ function Chat() {
                 isLoadingMore={messagesHook.isLoadingMore}
                 messagesEndRef={messagesEndRef}
                 messagesRef={messagesRef}
-                onContextMenu={handleContextMenu}
+                onContextMenu={contextMenuHook.handleContextMenu}
 
                 isSameDay={isSameDay}
                 formatDateSeparator={formatDateSeparator}
@@ -479,28 +345,23 @@ function Chat() {
                 userChatsLength={chatHook.userChatsLength}
                 bottomInputAreaRef={bottomInputAreaRef}
 
-                contextMenuVisible={contextMenuVisible}
-                contextMenuPositionY={contextMenuPosition.y}
-                contextMenuPositionX={contextMenuPosition.x}
-                selectedMessageIdForMenu={selectedMessageIdForMenu}
-                onDeleteMessage={handleDeleteMessage}
+                contextMenuVisible={contextMenuHook.contextMenuVisible}
+                contextMenuPositionY={contextMenuHook.contextMenuPosition.y}
+                contextMenuPositionX={contextMenuHook.contextMenuPosition.x}
+                selectedMessageIdForMenu={contextMenuHook.selectedMessageIdForMenu}
+                onDeleteMessage={editorHook.handleDeleteMessage}
                 onEditMessage={editorHook.handleEditMessage}
             />
-
             {
-                isCreatingChat && (
+                chatHook.isCreatingChat && (
                     <NewChatModal
-                        isOpen={isCreatingChat}
-                        onClose={() => {
-                            setIsCreatingChat(false);
-                            setCreateChatError('');
-                            setNewChatPartnerLogin('');
-                        }}
-                        onCreateChat={handleCreateChat}
+                        isOpen={chatHook.isCreatingChat}
+                        onClose={chatHook.handleClose}
+                        onCreateChat={chatHook.handleCreateChat}
                         isLoading={messagesHook.isLoading}
-                        error={createChatError}
-                        newChatPartnerLogin={newChatPartnerLogin}
-                        onNewChatPartnerLoginChange={setNewChatPartnerLogin}
+                        error={chatHook.createChatError}
+                        newChatPartnerLogin={chatHook.newChatPartnerLogin}
+                        onNewChatPartnerLoginChange={chatHook.setNewChatPartnerLogin}
                     />
                 )
             }

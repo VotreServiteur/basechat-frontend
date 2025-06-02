@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 
-import { getTokenOrRedirect, handleAuthFailure } from "../utils/useAuthCheck";
+import { getTokenOrRedirect, handleAuthFailure } from "../utils/useAuthUtils";
 import { useNavigate } from "react-router-dom";
 
 
